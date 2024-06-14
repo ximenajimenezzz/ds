@@ -1,0 +1,57 @@
+%pip uninstall torch -y
+
+%pip install torch  # For Databricks
+!pip install torch  # For local environment or Jupyter notebook
+
+dbutils.library.restartPython()
+
+import torch
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+
+# Define a simple linear model
+class LinearModel(torch.nn.Module):
+    def __init__(self, input_size):
+        super(LinearModel, self).__init__()
+        self.linear = torch.nn.Linear(input_size, 1)
+
+    def forward(self, x):
+        return self.linear(x)
+
+# Define the dummy variables
+items_to_boost = [
+
+    "product_is_desktop",
+    "product_is_laptop",
+
+]
+
+translate_variable_into_hawksearch = {
+    "product_is_laptop" : "Category DTE Facet is Laptops",
+    "product_is_desktop": "Category DTE Facet is Desktops",
+
+}
+
+
+# Initialize the linear model
+input_size = len(items_to_boost)
+model = LinearModel(input_size)
+
+# Extract the weights from the model
+with torch.no_grad():
+    weights = model.linear.weight.data.squeeze().numpy()
+
+# Scale the weights to fit into the range of -200 to 200
+scaler = MinMaxScaler(feature_range=(-200, 200))
+weights = scaler.fit_transform(weights.reshape(-1, 1)).flatten()
+
+# Create DataFrame
+df = pd.DataFrame({
+    "items to boost": [translate_variable_into_hawksearch[var_name] for var_name in items_to_boost],
+    "boost": weights
+})
+
+# Save DataFrame to CSV
+df.to_csv("output.csv", index=False)
+
+print("CSV file 'output.csv' has been created successfully.")
